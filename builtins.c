@@ -40,10 +40,8 @@ void pvm_get_time(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size)
 
 void pvm_get_realtime(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
     time_t t;
-    struct tm *tm;
-
-    time(&t);
-    tm = localtime(&t);
+	time(&t);
+	const struct tm *tm = localtime(&t);
 
     arguments[0] = tm->tm_hour;
     arguments[1] = tm->tm_min;
@@ -52,22 +50,18 @@ void pvm_get_realtime(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_s
 
 void pvm_get_date(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
 	time_t t;
-	struct tm *tm;
-
 	time(&t);
-	tm = localtime(&t);
+	const struct tm *tm = localtime(&t);
 
-	arguments[0] = tm->tm_year; // year
-	arguments[1] = tm->tm_mon; // month
+	arguments[0] = tm->tm_year + 1900; // year
+	arguments[1] = tm->tm_mon + 1; // month
 	arguments[2] = tm->tm_mday; // date
 }
 
 void pvm_get_weekday(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
 	time_t t;
-	struct tm *tm;
-
 	time(&t);
-	tm = localtime(&t);
+	const struct tm *tm = localtime(&t);
 
 	arguments[0] = tm->tm_wday; // weekday
 }
