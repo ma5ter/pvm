@@ -1,5 +1,7 @@
 #include "pvm.h"
 
+// ReSharper disable CppRedundantInlineSpecifier
+
 #ifdef PVM_DEBUG
 // if PVM_DEBUG is defined then user provides a header file with static functions that output opcodes debug
 #include PVM_DEBUG
@@ -20,33 +22,82 @@
 #define p_slp(value)
 #endif
 
-static inline __attribute__((section(".pvm_core"))) pvm_errno_t pvm_validate_function_index(pvm_t *vm, int32_t index) {
+/// \brief Validates the given function index against the size of executable's function table.
+///
+/// \param[in] vm The PVM instance.
+/// \param[in] index The function index to validate.
+///
+/// \return PVM_EXE_NO_FUNCTION if the index is out of bounds, otherwise PVM_NO_ERROR.
+///
+/// \details This function checks if the provided function index is within the valid range of the executable's functions table.
+/// It returns an error if the index is negative or greater than or equal to the number of functions in the executable.
+static inline __attribute__((section(".pvm_core"))) pvm_errno_t pvm_validate_function_index(const pvm_t *vm, const int32_t index) {
 	if (index < 0 || index >= vm->persist.exe->functions_size) return PVM_EXE_NO_FUNCTION;
 	return PVM_NO_ERROR;
 }
 
+/// \brief Retrieves the pointer to the constants section of the PVM executable.
+///
+/// \param[in] exe The PVM executable.
+///
+/// \return A pointer to the constants section of the executable.
+///
+/// \details This function calculates and returns the address of the constants section in the PVM executable.
+/// The constants section follows the functions section in the executable.
 static inline pvm_const_t __attribute__((section(".pvm_core"))) *pvm_constants(const pvm_exe_t *exe) {
 	return (pvm_const_t *)&exe->functions[exe->functions_size];
 }
 
+/// \brief Retrieves the pointer to the code section of the PVM executable.
+///
+/// \param[in] exe The PVM executable.
+///
+/// \return A pointer to the code section of the executable.
+///
+/// \details This function calculates and returns the address of the code section in the PVM executable.
+/// The code section follows the constants section in the executable.
 static inline pvm_op_t __attribute__((section(".pvm_core"))) *pvm_code(const pvm_exe_t *exe) {
 	return (pvm_op_t *)&pvm_constants(exe)[exe->constants_size];
 }
 
+/// \brief Retrieves the size of the code section in the PVM executable.
+///
+/// \param[in] exe The PVM executable.
+///
+/// \return The size of the code section in bytes.
+///
+/// \details This function calculates and returns the size of the code section in the PVM executable.
+/// The code section size is determined by subtracting the size of the constants section from the total size of the executable.
 static inline size_t __attribute__((section(".pvm_core"))) pvm_code_size(const pvm_exe_t *exe) {
 	return exe->size - ((uint8_t *)&pvm_constants(exe)[exe->constants_size] - (uint8_t *)&exe->min_vm_version);
 }
 
-static int __attribute__((section(".pvm_core"))) pvm_current_function(pvm_t *vm) {
+/// \brief Retrieves the index of the currently executing function in the PVM.
+///
+/// \param[in] vm The PVM instance.
+///
+/// \return The index of the currently executing function, or -1 for main().
+///
+/// \details This function returns the index of the function that is currently being executed by the PVM.
+/// If the call stack is empty, it indicates that the main() is executing, and the function returns -1.
+static int __attribute__((section(".pvm_core"))) pvm_current_function(const pvm_t *vm) {
 	// main variables start from the beginning of the data stack
 	pvm_call_stack_t top;
-	if ((top = vm->call_top) && top <= PVM_CALL_STACK_SIZE) {
+	if (((top = vm->call_top)) && top <= PVM_CALL_STACK_SIZE) {
 		return vm->call_stack[top - 1].function_index;
 	}
 	return -1;
 }
 
-static pvm_data_stack_t __attribute__((section(".pvm_core"))) pvm_current_variables_start(pvm_t *vm) {
+/// \brief Retrieves the starting index of the current function's variables in the PVM data stack.
+///
+/// \param[in] vm The PVM instance.
+///
+/// \return The starting index of the current function's variables in the data stack.
+///
+/// \details This function returns the starting index of the variables for the currently executing function in the PVM data stack.
+/// If the call stack is empty, it indicates that the main program is executing, and the function returns 0.
+static pvm_data_stack_t __attribute__((section(".pvm_core"))) pvm_current_variables_start(const pvm_t *vm) {
 	// main variables start from the beginning of the data stack
 	pvm_data_stack_t offset = 0;
 	pvm_call_stack_t top;
@@ -75,12 +126,31 @@ static __attribute__((section(".pvm_core"))) pvm_errno_t pvm_data_stack_pop(pvm_
 	return PVM_NO_ERROR;
 }
 
-enum pvm_exe_check_result __attribute__((section(".pvm_core"))) pvm_exe_check(const pvm_exe_t *exe, size_t size) {
+/// \brief Checks the validity of a PVM executable.
+///
+/// \param[in] exe The PVM executable to check.
+/// \param[in] size The size of the executable in bytes.
+///
+/// \return PVM_EXE_SIZE if the size does not match, PVM_EXE_VERSION if the minimum VM version does not match, otherwise PVM_EXE_OK.
+///
+/// \details This function verifies the size and minimum VM version of the given PVM executable.
+/// It returns an error if the size of the executable does not match the expected size or if the minimum VM version does not match the current version.
+///
+/// \note The size parameter should include the size of the executable header.
+enum pvm_exe_check_result __attribute__((section(".pvm_core"))) pvm_exe_check(const pvm_exe_t *exe, const size_t size) {
 	if (exe->size != size - sizeof(exe->size)) return PVM_EXE_SIZE;
 	if (exe->min_vm_version != PVM_MIN_VERSION) return PVM_EXE_VERSION;
 	return PVM_EXE_OK;
 }
 
+/// \brief Resets the PVM instance to its initial state.
+///
+/// \param[in,out] vm The PVM instance to reset.
+///
+/// \details This function clears all the runtime data of the PVM instance, except for the persistent data.
+/// After resetting, the data stack top is set to the number of main variables defined in the executable.
+///
+/// \note This function does not modify the executable or the persistent data.
 void __attribute__((section(".pvm_core"))) pvm_reset(pvm_t *vm) {
 	for (int i = 0; i < sizeof(pvm_t) - sizeof(vm->persist); ++i) {
 		((uint8_t *)vm)[i] = 0;
@@ -88,6 +158,15 @@ void __attribute__((section(".pvm_core"))) pvm_reset(pvm_t *vm) {
 	vm->data_top = vm->persist.exe->main_variables_count;
 }
 
+/// \brief Executes the next instruction in the PVM.
+///
+/// \param[in,out] vm The PVM instance.
+///
+/// \return PVM_NO_ERROR if the instruction was executed successfully, otherwise an error code.
+///
+/// \details This function fetches and executes the next instruction from the PVM's program counter.
+/// It handles various operations including arithmetic, logical, stack, and control flow instructions.
+/// The function also manages the PVM's data stack and call stack.
 pvm_errno_t __attribute__((section(".pvm_core"))) pvm_op(pvm_t *vm) {
 	register pvm_errno_t errno;
 	int32_t value;
@@ -256,53 +335,49 @@ pvm_errno_t __attribute__((section(".pvm_core"))) pvm_op(pvm_t *vm) {
 									param = -value;
 									goto jump;
 								}
-								else {
-									// LDC
-									if (value < 0 || value >= vm->persist.exe->constants_size) return PVM_NO_CONSTANT;
-									p_ld("LDC", value, pvm_constants(vm->persist.exe)[value]);
-									value = pvm_constants(vm->persist.exe)[value];
-									// expand sign for shorter stack types
-									#if PVM_CONST_SIGN > 0x80000000
+								// LDC
+								if (value < 0 || value >= vm->persist.exe->constants_size) return PVM_NO_CONSTANT;
+								p_ld("LDC", value, pvm_constants(vm->persist.exe)[value]);
+								value = pvm_constants(vm->persist.exe)[value];
+								// expand sign for shorter stack types
+								#if PVM_CONST_SIGN > 0x80000000
 									if (value & PVM_CONST_SIGN) {
 										value |= (int32_t)PVM_CONST_SIGN;
 									}
-									#endif
-									goto push_value;
+								#endif
+								goto push_value;
+							}
+							// SLP, RET
+							if (op & 0x01) {
+								// RET
+								p_s("RET");
+								int function = pvm_current_function(vm);
+								if (pvm_validate_function_index(vm, function)) return PVM_MAIN_RETURN;
+								// cleanup stack
+								pvm_data_stack_t stack_start = pvm_current_variables_start(vm);
+								const pvm_function_t *const fun = &vm->persist.exe->functions[function];
+								uint8_t returns_size = fun->returns_size;
+								pvm_data_stack_t returns_start = vm->data_top - returns_size;
+								// no need to check vm->call_top < 0 as pvm_current_function() already checked it
+								struct pvm_call_stack *const call = &vm->call_stack[--vm->call_top];
+								// check for smashed stack
+								if (stack_start + call->args_size + fun->variables_size != returns_start) return PVM_DATA_STACK_SMASHED;
+								// move return values to the beginning of the function stack
+								while (returns_size--) {
+									vm->data_stack[stack_start++] = vm->data_stack[returns_start++];
 								}
+								vm->data_top = stack_start;
+								// stack is guaranteed not to be empty by the 'function < 0' check
+								vm->pc = call->return_address;
+								p_ret(vm->pc, fun, call->args_size);
 							}
 							else {
-								// SLP, RET
-								if (op & 0x01) {
-									// RET
-									p_s("RET");
-									int function = pvm_current_function(vm);
-									if (pvm_validate_function_index(vm, function)) return PVM_MAIN_RETURN;
-									// cleanup stack
-									pvm_data_stack_t stack_start = pvm_current_variables_start(vm);
-									const pvm_function_t *const fun = &vm->persist.exe->functions[function];
-									uint8_t returns_size = fun->returns_size;
-									pvm_data_stack_t returns_start = vm->data_top - returns_size;
-									// no need to check vm->call_top < 0 as pvm_current_function() already checked it
-									struct pvm_call_stack *const call = &vm->call_stack[--vm->call_top];
-									// check for smashed stack
-									if (stack_start + call->args_size + fun->variables_size != returns_start) return PVM_DATA_STACK_SMASHED;
-									// move return values to the beginning of the function stack
-									while (returns_size--) {
-										vm->data_stack[stack_start++] = vm->data_stack[returns_start++];
-									}
-									vm->data_top = stack_start;
-									// stack is guaranteed not to be empty by the 'function < 0' check
-									vm->pc = call->return_address;
-									p_ret(vm->pc, fun, call->args_size);
-								}
-								else {
-									// SLP
-									// pseudo function with one parameter
-									if ((errno = pvm_data_stack_pop(vm, &value))) return errno;
-									vm->timer = now_ms();
-									vm->timeout = value;
-									p_slp(value);
-								}
+								// SLP
+								// pseudo function with one parameter
+								if ((errno = pvm_data_stack_pop(vm, &value))) return errno;
+								vm->timer = now_ms();
+								vm->timeout = value;
+								p_slp(value);
 							}
 						}
 						else {
@@ -385,55 +460,53 @@ pvm_errno_t __attribute__((section(".pvm_core"))) pvm_op(pvm_t *vm) {
 						}
 						goto push_value;
 					}
-					else {
-						// BZE, BNZ, BEQ, BNE, BGT, BLT, BGE, BLE
-						if ((op & 7) > 1) {
-							// BEQ, BNE, BGT, BLT, BGE, BLE
-							int32_t third;
-							if ((errno = pvm_data_stack_pop(vm, &third))) return errno;
-							second -= third;
-						}
-						if (op & 0x04) {
-							// BGT, BLT, BGE, BLE
-							if (op & 0x02) {
-								// BGE, BLE
-								if (op & 0x01) {
-									p_s("BLE");
-									// BLE
-									if (second <= 0) branch |= 1;
-								}
-								else {
-									p_s("BGE");
-									// BGE
-									if (second >= 0) branch |= 1;
-								}
+					// BZE, BNZ, BEQ, BNE, BGT, BLT, BGE, BLE
+					if ((op & 7) > 1) {
+						// BEQ, BNE, BGT, BLT, BGE, BLE
+						int32_t third;
+						if ((errno = pvm_data_stack_pop(vm, &third))) return errno;
+						second -= third;
+					}
+					if (op & 0x04) {
+						// BGT, BLT, BGE, BLE
+						if (op & 0x02) {
+							// BGE, BLE
+							if (op & 0x01) {
+								p_s("BLE");
+								// BLE
+								if (second <= 0) branch |= 1;
 							}
 							else {
-								// BGT, BLT
-								if (op & 0x01) {
-									p_s("BLT");
-									// BLT
-									if (second < 0) branch |= 1;
-								}
-								else {
-									p_s("BGT");
-									// BGT
-									if (second > 0) branch |= 1;
-								}
+								p_s("BGE");
+								// BGE
+								if (second >= 0) branch |= 1;
 							}
 						}
 						else {
-							// BZE, BNZ, BEQ, BNE
+							// BGT, BLT
 							if (op & 0x01) {
-								// BNE, BNZ
-								p_s("BN*");
-								if (second) branch |= 1;
+								p_s("BLT");
+								// BLT
+								if (second < 0) branch |= 1;
 							}
 							else {
-								// BEQ, BZE
-								p_s("BZ*");
-								if (second == 0) branch |= 1;
+								p_s("BGT");
+								// BGT
+								if (second > 0) branch |= 1;
 							}
+						}
+					}
+					else {
+						// BZE, BNZ, BEQ, BNE
+						if (op & 0x01) {
+							// BNE, BNZ
+							p_s("BN*");
+							if (second) branch |= 1;
+						}
+						else {
+							// BEQ, BZE
+							p_s("BZ*");
+							if (second == 0) branch |= 1;
 						}
 					}
 					if (branch & 1) {

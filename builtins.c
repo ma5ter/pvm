@@ -12,16 +12,34 @@ int32_t expand(pvm_data_t value) {
 
 #include <time.h>
 
+/// \brief A necessary to implement function that is used for SLP instruction functionality.
+/// It returns the current time in milliseconds since an unspecified starting point, which is not affected by system time changes.
+///
+/// \return The current time span in milliseconds.
+///
+/// \details The example function uses the clock_gettime() system call to get the current time in seconds and nanoseconds.
+/// It then converts the seconds to milliseconds and adds the milliseconds obtained from the nanoseconds.
+/// The result is returned as uint32_t, which means that the function will overflow after approximately 49.7 days of continuous operation.
+///
+/// \note The returned value is not the actual time of day, but rather the time elapsed since an unspecified starting point.
 uint32_t now_ms(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint32_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+    return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 
 void __attribute__((section(".pvm_builtins"))) pvm_builtin_print(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
+	#ifndef PVM_DEBUG
+	// terminate string when no opcode debug is printed
+	printf(":");
+	#endif
 	for (int i = 0; i < args_size; ++i) {
 		printf(" %d", expand(arguments[i]));
 	}
+	#ifndef PVM_DEBUG
+	// terminate string when no opcode debug is printed
+	printf("\n");
+	#endif
 }
 
 void __attribute__((section(".pvm_builtins"))) pvm_output(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
