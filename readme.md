@@ -1,3 +1,6 @@
+[![Build on Linux-gcc-clang](https://github.com/ma5ter/pvm/actions/workflows/cmake-linux-gcc-clang.yml/badge.svg)](https://github.com/ma5ter/pvm/actions/workflows/cmake-linux-gcc-clang.yml)
+[![Build on Windows-cl](https://github.com/ma5ter/pvm/actions/workflows/cmake-windows-cl.yml/badge.svg)](https://github.com/ma5ter/pvm/actions/workflows/cmake-windows-cl.yml)
+
 # Portable Virtual Machine for Microcontrollers
 
 ## Overview
@@ -234,7 +237,7 @@ if (err != PVM_NO_ERROR) {
 }
 ```
 
-## Error Handling
+### Error Handling
 
 PVM includes a comprehensive error handling mechanism to manage runtime errors returned in the `pvm_errno` enum in the
 PVM (Portable Virtual Machine) defines various error codes that can be returned by PVM functions to indicate different
