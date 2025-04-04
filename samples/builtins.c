@@ -19,6 +19,13 @@ int32_t expand(pvm_data_t value) {
 #define ENDL "\n"
 #endif
 
+#ifndef section_pvm_builtins
+#if defined(__GNUC__) || defined(__clang__)
+#define section_pvm_builtins __attribute__((section(".pvm_builtins")))
+#else
+#define section_pvm_builtins
+#endif
+#endif
 
 /// \brief A necessary to implement function that is used for SLP instruction functionality.
 /// It returns the current time in milliseconds since an unspecified starting point, which is not affected by system time changes.
@@ -36,7 +43,7 @@ uint32_t now_ms(void) {
     return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 
-void __attribute__((section(".pvm_builtins"))) pvm_builtin_print(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
+void section_pvm_builtins pvm_builtin_print(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
 	#ifndef PVM_DEBUG
 	printf(":");
 	#endif
@@ -51,7 +58,7 @@ void __attribute__((section(".pvm_builtins"))) pvm_builtin_print(pvm_t *vm, pvm_
 	#endif
 }
 
-void __attribute__((section(".pvm_builtins"))) pvm_output(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
+void section_pvm_builtins pvm_output(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
 	printf("OUTPUT: %d" ENDL, expand(arguments[0]));
 }
 
@@ -93,15 +100,15 @@ void pvm_get_weekday(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_si
 	arguments[0] = tm->tm_wday; // weekday
 }
 
-void __attribute__((section(".pvm_builtins"))) pvm_sh_section_state(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
+void section_pvm_builtins pvm_sh_section_state(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
 	arguments[0] = 2;
 }
 
-void __attribute__((section(".pvm_builtins"))) pvm_sh_get_entry_timer(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
+void section_pvm_builtins pvm_sh_get_entry_timer(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
 	arguments[0] = 0;
 }
 
-void __attribute__((section(".pvm_builtins"))) pvm_sh_get_exit_timer(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
+void section_pvm_builtins pvm_sh_get_exit_timer(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
 	arguments[0] = 0;
 }
 
