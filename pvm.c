@@ -23,6 +23,15 @@
 #endif
 
 #define PVM_INTEGRAL_OP_MASK 0x0F
+
+#ifndef section_pvm_core
+#if defined(__GNUC__) || defined(__clang__)
+#define section_pvm_core __attribute__((section(".pvm_core")))
+#else
+#define section_pvm_core
+#endif
+#endif
+
 /// \brief Validates the given function index against the size of executable's function table.
 ///
 /// \param[in] vm The PVM instance.
@@ -32,7 +41,7 @@
 ///
 /// \details This function checks if the provided function index is within the valid range of the executable's functions table.
 /// It returns an error if the index is negative or greater than or equal to the number of functions in the executable.
-static inline __attribute__((section(".pvm_core"))) pvm_errno_t pvm_validate_function_index(const pvm_t *vm, const int32_t index) {
+static inline section_pvm_core pvm_errno_t pvm_validate_function_index(const pvm_t *vm, const int32_t index) {
 	if (index < 0 || index >= vm->persist.exe->functions_count) return PVM_EXE_NO_FUNCTION;
 	return PVM_NO_ERROR;
 }
@@ -45,7 +54,7 @@ static inline __attribute__((section(".pvm_core"))) pvm_errno_t pvm_validate_fun
 ///
 /// \details This function calculates and returns the address of the constants section in the PVM executable.
 /// The constants section follows the functions section in the executable.
-static inline pvm_const_t __attribute__((section(".pvm_core"))) *pvm_constants(const pvm_exe_t *exe) {
+static inline pvm_const_t section_pvm_core *pvm_constants(const pvm_exe_t *exe) {
 	return (pvm_const_t *)&exe->functions[exe->functions_count];
 }
 
@@ -57,7 +66,7 @@ static inline pvm_const_t __attribute__((section(".pvm_core"))) *pvm_constants(c
 ///
 /// \details This function calculates and returns the address of the code section in the PVM executable.
 /// The code section follows the constants section in the executable.
-static inline pvm_op_t __attribute__((section(".pvm_core"))) *pvm_code(const pvm_exe_t *exe) {
+static inline pvm_op_t section_pvm_core *pvm_code(const pvm_exe_t *exe) {
 	return (pvm_op_t *)&pvm_constants(exe)[exe->constants_count];
 }
 
@@ -69,7 +78,7 @@ static inline pvm_op_t __attribute__((section(".pvm_core"))) *pvm_code(const pvm
 ///
 /// \details This function calculates and returns the size of the code section in the PVM executable.
 /// The code section size is determined by subtracting the size of the constants section from the total size of the executable.
-static inline size_t __attribute__((section(".pvm_core"))) pvm_code_size(const pvm_exe_t *exe) {
+static inline size_t section_pvm_core pvm_code_size(const pvm_exe_t *exe) {
 	return exe->size - ((uint8_t *)&pvm_constants(exe)[exe->constants_count] - (uint8_t *)&exe->functions[0]);
 }
 
@@ -81,7 +90,7 @@ static inline size_t __attribute__((section(".pvm_core"))) pvm_code_size(const p
 ///
 /// \details This function returns the index of the function that is currently being executed by the PVM.
 /// If the call stack is empty, it indicates that the main() is executing, and the function returns -1.
-static int __attribute__((section(".pvm_core"))) pvm_current_function(const pvm_t *vm) {
+static int section_pvm_core pvm_current_function(const pvm_t *vm) {
 	// main variables start from the beginning of the data stack
 	pvm_call_stack_t top;
 	if (((top = vm->call_top)) && top <= PVM_CALL_STACK_SIZE) {
@@ -98,7 +107,7 @@ static int __attribute__((section(".pvm_core"))) pvm_current_function(const pvm_
 ///
 /// \details This function returns the starting index of the variables for the currently executing function in the PVM data stack.
 /// If the call stack is empty, it indicates that the main program is executing, and the function returns 0.
-static pvm_data_stack_t __attribute__((section(".pvm_core"))) pvm_current_variables_start(const pvm_t *vm) {
+static pvm_data_stack_t section_pvm_core pvm_current_variables_start(const pvm_t *vm) {
 	// main variables start from the beginning of the data stack
 	pvm_data_stack_t offset = 0;
 	pvm_call_stack_t top;
@@ -108,13 +117,13 @@ static pvm_data_stack_t __attribute__((section(".pvm_core"))) pvm_current_variab
 	return offset;
 }
 
-static __attribute__((section(".pvm_core"))) pvm_errno_t pvm_data_stack_push(pvm_t *vm, const pvm_data_t data) {
+static section_pvm_core pvm_errno_t pvm_data_stack_push(pvm_t *vm, const pvm_data_t data) {
 	if (vm->data_top >= PVM_DATA_STACK_SIZE) return PVM_DATA_STACK_OVERFLOW;
 	vm->data_stack[vm->data_top++] = data;
 	return PVM_NO_ERROR;
 }
 
-static __attribute__((section(".pvm_core"))) pvm_errno_t pvm_data_stack_pop(pvm_t *vm, int32_t *data) {
+static section_pvm_core pvm_errno_t pvm_data_stack_pop(pvm_t *vm, int32_t *data) {
 	if (vm->data_top == 0) return PVM_DATA_STACK_UNDERFLOW;
 	int32_t value = vm->data_stack[--vm->data_top];
 	// expand sign for shorter stack types
@@ -138,7 +147,7 @@ static __attribute__((section(".pvm_core"))) pvm_errno_t pvm_data_stack_pop(pvm_
 /// It returns an error if the size of the executable does not match the expected size or if the minimum VM version does not match the current version.
 ///
 /// \note The size parameter should include the size of the executable header.
-enum pvm_exe_check_result __attribute__((section(".pvm_core"))) pvm_exe_check(const pvm_exe_t *exe, const size_t size) {
+enum pvm_exe_check_result section_pvm_core pvm_exe_check(const pvm_exe_t *exe, const size_t size) {
 	if (exe->size != size - sizeof(exe->vm_version) - sizeof(exe->size) - sizeof(exe->functions_count) - sizeof(exe->constants_count) - sizeof(exe->main_variables_count)) return PVM_EXE_SIZE;
 	if (exe->vm_version != PVM_VERSION) return PVM_EXE_VERSION;
 	return PVM_EXE_OK;
@@ -152,7 +161,7 @@ enum pvm_exe_check_result __attribute__((section(".pvm_core"))) pvm_exe_check(co
 /// After resetting, the data stack top is set to the number of main variables defined in the executable.
 ///
 /// \note This function does not modify the executable or the persistent data.
-void __attribute__((section(".pvm_core"))) pvm_reset(pvm_t *vm) {
+void section_pvm_core pvm_reset(pvm_t *vm) {
 	for (int i = 0; i < sizeof(pvm_t) - sizeof(vm->persist); ++i) {
 		((uint8_t *)vm)[i] = 0;
 	}
@@ -168,7 +177,7 @@ void __attribute__((section(".pvm_core"))) pvm_reset(pvm_t *vm) {
 /// \details This function fetches and executes the next instruction from the PVM's program counter.
 /// It handles various operations including arithmetic, logical, stack, and control flow instructions.
 /// The function also manages the PVM's data stack and call stack.
-pvm_errno_t __attribute__((section(".pvm_core"))) pvm_op(pvm_t *vm) {
+pvm_errno_t section_pvm_core pvm_op(pvm_t *vm) {
 	register pvm_errno_t errno;
 	int32_t value;
 

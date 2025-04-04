@@ -26,12 +26,14 @@ target_compile_definitions(pvm PRIVATE
 		PVM_CALL_STACK_SIZE=${PVM_CALL_STACK_SIZE}
 )
 
-add_custom_command(TARGET pvm POST_BUILD
-		COMMENT "Printing valuable size information for pvm sections"
-		COMMAND echo "PVM sections sizes:"
-		COMMAND size -Ax "$<TARGET_FILE:pvm>" | grep -P "\\.pvm_|section"
-		VERBATIM
-)
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
+	add_custom_command(TARGET pvm POST_BUILD
+			COMMENT "Printing valuable size information for pvm sections"
+			COMMAND echo "PVM sections sizes:"
+			COMMAND size -Ax "$<TARGET_FILE:pvm>" | grep -P "\\.pvm_|section"
+			VERBATIM
+	)
+endif ()
 
 target_include_directories(pvm PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}
