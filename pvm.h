@@ -14,7 +14,14 @@
 #endif
 
 #ifndef packed_struct
+#if defined(__GNUC__) || defined(__clang__)
 #define packed_struct struct __attribute__((__packed__, aligned(1)))
+#elif defined(_MSC_VER)
+#define packed_struct __declspec(align(1)) struct
+#else
+#define packed_struct struct
+#warning "Unknown compiler - packed_struct will not enforce packing"
+#endif
 #endif
 
 /// \brief This defines a type pvm_op_t which is an 8-bit unsigned integer.
