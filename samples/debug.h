@@ -33,11 +33,11 @@ static void __attribute__((section(".pvm_debug"))) p_pop(uint8_t count) {
 }
 
 static void __attribute__((section(".pvm_debug"))) p_cal(const pvm_function_t *const fun, uint8_t args_size) {
-	p("CAL <%s%u> (%u) =", fun->sys_lib ? "*" : "", fun->address, args_size + fun->variables_size);
+	p("CAL <%s%u> (%u) =", fun->is_built_in ? "*" : "", fun->address, args_size + fun->variables_count);
 }
 
 static void __attribute__((section(".pvm_debug"))) p_ret(pvm_address_t pc, const pvm_function_t *const fun, uint8_t args_size) {
-	p(" <%u> (%u+%u)", pc, args_size + fun->variables_size, fun->returns_size);
+	p(" <%u> (%u+%u)", pc, args_size + fun->variables_count, fun->returns_count);
 }
 
 static void __attribute__((section(".pvm_debug"))) p_psh(uint8_t value) {

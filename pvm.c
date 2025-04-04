@@ -22,6 +22,7 @@
 #define p_slp(value)
 #endif
 
+#define PVM_INTEGRAL_OP_MASK 0x0F
 /// \brief Validates the given function index against the size of executable's function table.
 ///
 /// \param[in] vm The PVM instance.
@@ -32,7 +33,7 @@
 /// \details This function checks if the provided function index is within the valid range of the executable's functions table.
 /// It returns an error if the index is negative or greater than or equal to the number of functions in the executable.
 static inline __attribute__((section(".pvm_core"))) pvm_errno_t pvm_validate_function_index(const pvm_t *vm, const int32_t index) {
-	if (index < 0 || index >= vm->persist.exe->functions_size) return PVM_EXE_NO_FUNCTION;
+	if (index < 0 || index >= vm->persist.exe->functions_count) return PVM_EXE_NO_FUNCTION;
 	return PVM_NO_ERROR;
 }
 
@@ -45,7 +46,7 @@ static inline __attribute__((section(".pvm_core"))) pvm_errno_t pvm_validate_fun
 /// \details This function calculates and returns the address of the constants section in the PVM executable.
 /// The constants section follows the functions section in the executable.
 static inline pvm_const_t __attribute__((section(".pvm_core"))) *pvm_constants(const pvm_exe_t *exe) {
-	return (pvm_const_t *)&exe->functions[exe->functions_size];
+	return (pvm_const_t *)&exe->functions[exe->functions_count];
 }
 
 /// \brief Retrieves the pointer to the code section of the PVM executable.
@@ -57,7 +58,7 @@ static inline pvm_const_t __attribute__((section(".pvm_core"))) *pvm_constants(c
 /// \details This function calculates and returns the address of the code section in the PVM executable.
 /// The code section follows the constants section in the executable.
 static inline pvm_op_t __attribute__((section(".pvm_core"))) *pvm_code(const pvm_exe_t *exe) {
-	return (pvm_op_t *)&pvm_constants(exe)[exe->constants_size];
+	return (pvm_op_t *)&pvm_constants(exe)[exe->constants_count];
 }
 
 /// \brief Retrieves the size of the code section in the PVM executable.
@@ -69,7 +70,7 @@ static inline pvm_op_t __attribute__((section(".pvm_core"))) *pvm_code(const pvm
 /// \details This function calculates and returns the size of the code section in the PVM executable.
 /// The code section size is determined by subtracting the size of the constants section from the total size of the executable.
 static inline size_t __attribute__((section(".pvm_core"))) pvm_code_size(const pvm_exe_t *exe) {
-	return exe->size - ((uint8_t *)&pvm_constants(exe)[exe->constants_size] - (uint8_t *)&exe->min_vm_version);
+	return exe->size - ((uint8_t *)&pvm_constants(exe)[exe->constants_count] - (uint8_t *)&exe->functions[0]);
 }
 
 /// \brief Retrieves the index of the currently executing function in the PVM.
@@ -138,8 +139,8 @@ static __attribute__((section(".pvm_core"))) pvm_errno_t pvm_data_stack_pop(pvm_
 ///
 /// \note The size parameter should include the size of the executable header.
 enum pvm_exe_check_result __attribute__((section(".pvm_core"))) pvm_exe_check(const pvm_exe_t *exe, const size_t size) {
-	if (exe->size != size - sizeof(exe->size)) return PVM_EXE_SIZE;
-	if (exe->min_vm_version != PVM_MIN_VERSION) return PVM_EXE_VERSION;
+	if (exe->size != size - sizeof(exe->vm_version) - sizeof(exe->size) - sizeof(exe->functions_count) - sizeof(exe->constants_count) - sizeof(exe->main_variables_count)) return PVM_EXE_SIZE;
+	if (exe->vm_version != PVM_VERSION) return PVM_EXE_VERSION;
 	return PVM_EXE_OK;
 }
 
@@ -209,7 +210,7 @@ pvm_errno_t __attribute__((section(".pvm_core"))) pvm_op(pvm_t *vm) {
 				else {
 					if ((errno = pvm_validate_function_index(vm, function))) return errno;
 					const pvm_function_t *const pvm_function = &vm->persist.exe->functions[function];
-					stack_size = pvm_function->args_size + pvm_function->variables_size;
+					stack_size = pvm_function->arguments_count + pvm_function->variables_count;
 				}
 				if (param < 0 || param >= stack_size) return PVM_NO_VARIABLE;
 				if ((param += pvm_current_variables_start(vm)) >= PVM_DATA_STACK_SIZE) return PVM_VAR_OUT_OF_STACK;
@@ -232,9 +233,9 @@ pvm_errno_t __attribute__((section(".pvm_core"))) pvm_op(pvm_t *vm) {
 					if (vm->call_top >= PVM_CALL_STACK_SIZE) return PVM_CALL_STACK_OVERFLOW;
 					const pvm_function_t *const fun = &vm->persist.exe->functions[param];
 					// get function arguments size
-					size_t args_size = fun->args_size;
+					size_t args_size = fun->arguments_count;
 					// for variadic functions, get number of variadic arguments from the stack
-					if (fun->variadic) {
+					if (fun->is_variadic) {
 						pvm_data_t variadic_size;
 						if ((errno = pvm_data_stack_pop(vm, &variadic_size))) return errno;
 						if (variadic_size < 0 || (args_size += variadic_size) > 0xFF) return PVM_VARIADIC_SIZE;
@@ -244,26 +245,26 @@ pvm_errno_t __attribute__((section(".pvm_core"))) pvm_op(pvm_t *vm) {
 					if (vm->data_top < args_size) return PVM_ARG_OUT_OF_STACK;
 					// arguments are already pushed into the stack, check for stack overflow upon function call
 					const pvm_data_stack_t stack_rest = PVM_DATA_STACK_SIZE - vm->data_top;
-					if (stack_rest < fun->variables_size) return PVM_VAR_OUT_OF_STACK;
-					if (stack_rest < fun->returns_size) return PVM_RETURN_OUT_OF_STACK;
+					if (stack_rest < fun->variables_count) return PVM_VAR_OUT_OF_STACK;
+					if (stack_rest < fun->returns_count) return PVM_RETURN_OUT_OF_STACK;
 					// calculate function stack start
 					const pvm_data_stack_t call_stack_start = vm->data_top - args_size;
 					// call the function
 					const pvm_address_t address = fun->address;
-					if (fun->sys_lib) {
+					if (fun->is_built_in) {
 						if (address >= pvm_builtins_size) return PVM_BUILTIN_NO_FUNCTION;
 						// for built-in functions, parameters and return values occupy common space
 						pvm_builtins[address].func(vm, vm->data_stack + call_stack_start, args_size);
 						// as no RET instruction was executed, emulate it setting the stack pointer to the number of returns
-						vm->data_top = call_stack_start + fun->returns_size;
+						vm->data_top = call_stack_start + fun->returns_count;
 					}
 					else {
 						struct pvm_call_stack *call = &vm->call_stack[vm->call_top++];
 						call->function_index = param;
 						call->variables_start = call_stack_start;
-						call->args_size = args_size;
+						call->arguments_count = args_size;
 						// initialize local variables with zeros and set proper stack top at once
-						for (int i = 0; i < fun->variables_size; ++i) {
+						for (int i = 0; i < fun->variables_count; ++i) {
 							if ((errno = pvm_data_stack_push(vm, 0))) return errno;
 						}
 						call->return_address = vm->pc;
@@ -336,14 +337,14 @@ pvm_errno_t __attribute__((section(".pvm_core"))) pvm_op(pvm_t *vm) {
 									goto jump;
 								}
 								// LDC
-								if (value < 0 || value >= vm->persist.exe->constants_size) return PVM_NO_CONSTANT;
+								if (value < 0 || value >= vm->persist.exe->constants_count) return PVM_NO_CONSTANT;
 								p_ld("LDC", value, pvm_constants(vm->persist.exe)[value]);
 								value = pvm_constants(vm->persist.exe)[value];
 								// expand sign for shorter stack types
 								#if PVM_CONST_SIGN > 0x80000000
-									if (value & PVM_CONST_SIGN) {
-										value |= (int32_t)PVM_CONST_SIGN;
-									}
+								if (value & PVM_CONST_SIGN) {
+									value |= (int32_t)PVM_CONST_SIGN;
+								}
 								#endif
 								goto push_value;
 							}
@@ -356,12 +357,12 @@ pvm_errno_t __attribute__((section(".pvm_core"))) pvm_op(pvm_t *vm) {
 								// cleanup stack
 								pvm_data_stack_t stack_start = pvm_current_variables_start(vm);
 								const pvm_function_t *const fun = &vm->persist.exe->functions[function];
-								uint8_t returns_size = fun->returns_size;
+								uint8_t returns_size = fun->returns_count;
 								pvm_data_stack_t returns_start = vm->data_top - returns_size;
 								// no need to check vm->call_top < 0 as pvm_current_function() already checked it
 								struct pvm_call_stack *const call = &vm->call_stack[--vm->call_top];
 								// check for smashed stack
-								if (stack_start + call->args_size + fun->variables_size != returns_start) return PVM_DATA_STACK_SMASHED;
+								if (stack_start + call->arguments_count + fun->variables_count != returns_start) return PVM_DATA_STACK_SMASHED;
 								// move return values to the beginning of the function stack
 								while (returns_size--) {
 									vm->data_stack[stack_start++] = vm->data_stack[returns_start++];
@@ -369,7 +370,7 @@ pvm_errno_t __attribute__((section(".pvm_core"))) pvm_op(pvm_t *vm) {
 								vm->data_top = stack_start;
 								// stack is guaranteed not to be empty by the 'function < 0' check
 								vm->pc = call->return_address;
-								p_ret(vm->pc, fun, call->args_size);
+								p_ret(vm->pc, fun, call->arguments_count);
 							}
 							else {
 								// SLP

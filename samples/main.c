@@ -73,7 +73,7 @@ int main(const int argc, const char *argv[]) {
 	if (!vm->persist.exe) return 1;
 	pvm_reset(vm);
 
-	printf("MIN_VM_VERSION: %u\nFUNCTIONS: %u\nCONSTANTS:%u\n", vm->persist.exe->min_vm_version, vm->persist.exe->functions_size, vm->persist.exe->constants_size);
+	printf("MIN_VM_VERSION: %u\nFUNCTIONS: %u\nCONSTANTS:%u\n", vm->persist.exe->vm_version, vm->persist.exe->functions_count, vm->persist.exe->constants_count);
 
 	int err = 0;
 	while (!(err = pvm_op(vm))) {
