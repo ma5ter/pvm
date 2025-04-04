@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <malloc.h>
-#include "pvm/pvm.h"
+#include "pvm.h"
 
 const char *pvm_errno_strings[] = {
 "No error",

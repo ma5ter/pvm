@@ -1,7 +1,7 @@
 #ifndef PVM_DEBUG_H
 #define PVM_DEBUG_H
 
-#include "pvm/pvm.h"
+#include "pvm.h"
 #include <stdio.h>
 
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"

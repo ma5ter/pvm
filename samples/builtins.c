@@ -1,5 +1,6 @@
 #include <stdio.h>
-#include "pvm/pvm.h"
+#include <time.h>
+#include "pvm.h"
 
 #if PVM_DATA_SIGN > 0x80000000
 int32_t expand(pvm_data_t value) {
@@ -10,7 +11,14 @@ int32_t expand(pvm_data_t value) {
 #define expand(x) (int32_t)x
 #endif
 
-#include <time.h>
+#ifdef PVM_DEBUG
+// don't terminate strings when opcode debug is printed
+#define ENDL ""
+#else
+// terminate strings when no opcode debug is printed
+#define ENDL "\n"
+#endif
+
 
 /// \brief A necessary to implement function that is used for SLP instruction functionality.
 /// It returns the current time in milliseconds since an unspecified starting point, which is not affected by system time changes.
@@ -30,20 +38,21 @@ uint32_t now_ms(void) {
 
 void __attribute__((section(".pvm_builtins"))) pvm_builtin_print(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
 	#ifndef PVM_DEBUG
-	// terminate string when no opcode debug is printed
 	printf(":");
 	#endif
-	for (int i = 0; i < args_size; ++i) {
-		printf(" %d", expand(arguments[i]));
+	if (args_size) {
+		printf("%d", expand(arguments[0]));
+		for (int i = 1; i < args_size; ++i) {
+			printf(" %d", expand(arguments[i]));
+		}
 	}
 	#ifndef PVM_DEBUG
-	// terminate string when no opcode debug is printed
-	printf("\n");
+	printf(ENDL);
 	#endif
 }
 
 void __attribute__((section(".pvm_builtins"))) pvm_output(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {
-	printf("OUTPUT= %d", expand(arguments[0]));
+	printf("OUTPUT: %d" ENDL, expand(arguments[0]));
 }
 
 void pvm_get_tick(pvm_t *vm, pvm_data_t arguments[], pvm_data_stack_t args_size) {

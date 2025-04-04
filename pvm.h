@@ -116,7 +116,7 @@ typedef enum pvm_errno {
 /// \brief Defines the signature for built-in functions in the PVM.
 ///
 /// \param[in,out] vm The PVM instance.
-/// \param[in] arguments An array of arguments passed to the built-in function.
+/// \param[in,out] arguments An array of arguments passed to the built-in function.
 /// \param[in] args_size The number of arguments in the array.
 ///
 /// \details This type definition specifies the prototype for built-in functions in the PVM.
@@ -139,7 +139,7 @@ extern const packed_struct pvm_builtins {
 /// It is used to determine the size of the `pvm_builtins` array.
 ///
 /// \note This value is used for bounds checking and to ensure that built-in function indices are valid.
-/// Typically assign in builtins c module as<br>\code sizeof(pvm_builtins) / sizeof(pvm_builtins[0])
+/// Typically assign in builtins c module as<br>\code (sizeof(pvm_builtins) / sizeof(pvm_builtins[0]))
 extern const size_t pvm_builtins_size;
 
 /// \brief A necessary to implement function that is used for SLP instruction functionality.
