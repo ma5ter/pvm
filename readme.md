@@ -1,5 +1,4 @@
 [![Build on Linux-gcc-clang](https://github.com/ma5ter/pvm/actions/workflows/cmake-linux-gcc-clang.yml/badge.svg)](https://github.com/ma5ter/pvm/actions/workflows/cmake-linux-gcc-clang.yml)
-[![Build on Windows-cl](https://github.com/ma5ter/pvm/actions/workflows/cmake-windows-cl.yml/badge.svg)](https://github.com/ma5ter/pvm/actions/workflows/cmake-windows-cl.yml)
 
 # Portable Virtual Machine for Microcontrollers
 
